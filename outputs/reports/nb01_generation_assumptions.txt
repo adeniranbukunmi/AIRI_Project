@@ -1,0 +1,45 @@
+
+GENERATION ASSUMPTIONS — Notebook 01
+======================================
+
+1. SYNTHETIC DATA ONLY
+   No real institutional data was used. All 150 profiles are computer-generated.
+   No real institution names, financials, or identifiable characteristics appear.
+
+2. SECTOR-SPECIFIC BASE MEANS
+   Each sector has a distinct per-indicator mean vector (not a uniform global mean).
+   This encodes realistic sector patterns:
+     - retail_bank:     highest D3 regulatory compliance (FCA oversight most mature)
+     - fintech_lender:  highest D2 technological maturity (born-digital advantage)
+     - debt_purchaser:  average across all dimensions
+     - credit_union:    lowest overall (resource-constrained, limited AI exposure)
+
+3. SIZE ADJUSTMENT
+   Institution size shifts the mean uniformly across all indicators:
+     large (+0.4), mid (+0.1), small (-0.2)
+   Rationale: larger institutions have more resources for AI investment.
+
+4. CORRELATION STRUCTURE
+   A 15x15 covariance matrix injects 22 realistic cross-indicator correlations.
+   Key design correlations:
+     - fca_alignment <-> consumer_duty       : ~0.70 (same regulatory domain)
+     - system_capability <-> ai_tooling      : ~0.75 (co-evolving capabilities)
+     - data_governance <-> audit_trail       : ~0.55 (governance enables audit)
+     - bias_mitigation <-> explainability    : ~0.70 (ethical AI pair)
+   The matrix is forced positive semi-definite via eigenvalue clipping.
+
+5. REPRODUCIBILITY
+   Random seed 42 is set globally (numpy, random, Faker) before generation.
+   Any run with seed=42 produces bit-for-bit identical output.
+
+6. LIKERT CLIPPING
+   Continuous samples from the multivariate normal are rounded and hard-clipped
+   to integer range [1, 5]. This slightly compresses the tails but preserves
+   the correlation structure in the interior of the distribution.
+
+7. LIMITATIONS
+   - 150 records is sufficient for XGBoost but limits statistical power for
+     subgroup analyses (e.g. sector × size interactions).
+   - Correlation structure is design-based, not empirically derived from real data.
+   - Sector base means are informed estimates, not calibrated from survey data.
+     CVI expert validation (Step 14) will provide empirical grounding.

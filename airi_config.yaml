@@ -1,0 +1,57 @@
+# ──────────────────────────────────────────────────────────────────────
+# airi_config.yaml | AIRI Master Weight Configuration
+# ──────────────────────────────────────────────────────────────────────
+# RULES:
+# 1. dimension weights must sum to exactly 1.0
+# 2. indicator weights within each dimension must sum to exactly 1.0
+# 3. Do not add/remove dimensions without updating the scoring engine
+# 4. Indicator names must match column names in the dataset exactly
+# ──────────────────────────────────────────────────────────────────────
+
+scoring:
+  scale_min: 0
+  scale_max: 100
+  likert_min: 1
+  likert_max: 5
+
+dimensions:
+  data_infrastructure:
+    weight: 0.20
+    indicators:
+      data_quality: 0.30
+      data_governance: 0.35
+      data_integration: 0.35
+
+  technological_maturity:
+    weight: 0.20
+    indicators:
+      system_capability: 0.40
+      ai_tooling: 0.35
+      infrastructure_resilience: 0.25
+
+  regulatory_compliance:
+    weight: 0.25
+    indicators:
+      fca_alignment: 0.40
+      consumer_duty: 0.35
+      audit_trail: 0.25
+
+  organisational_capability:
+    weight: 0.20
+    indicators:
+      talent_readiness: 0.35
+      change_management: 0.35
+      leadership_commitment: 0.30
+
+  ethical_governance:
+    weight: 0.15
+    indicators:
+      bias_mitigation: 0.35
+      explainability: 0.35
+      accountability_structures: 0.30
+
+tiers:
+  nascent: [0, 40]
+  developing: [40, 60]
+  established: [60, 80]
+  leading: [80, 100]
