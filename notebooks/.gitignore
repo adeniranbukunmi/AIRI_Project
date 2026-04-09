@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+build/
+dist/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Models & Data
+# We keep CSVs if they are small synthetic ones, 
+# but ignore large model files if you prefer
+models/*.pkl
+
+# Power BI
+*.pbit
+*.pbip
+*.pbir
+
+# OS generated files
+.DS_Store
+Thumbs.db
