@@ -1,0 +1,12 @@
+Metric,Value
+Total institutions,150
+Mean AIRI score,59.69
+Std deviation,14.91
+Min AIRI score,21.25
+Max AIRI score,98.75
+Nascent count (%),14 (9.3%)
+Developing count (%),62 (41.3%)
+Established count (%),60 (40.0%)
+Leading count (%),14 (9.3%)
+Max MASC (sensitivity),0.8258
+Index robust (MASC < 2.0),YES

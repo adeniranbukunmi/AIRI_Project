@@ -4,14 +4,14 @@ import pandas as pd
 from pathlib import Path
 from faker import Faker
  
-# Global seed 
+# ── Global seed ───────────────────────────────────────────────────────
 RANDOM_SEED = 42
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 fake = Faker("en_GB")
 fake.seed_instance(RANDOM_SEED)
  
-# Indicator columns — order matches spec Section 4.3
+# ── Indicator columns — order matches spec Section 4.3 ───────────────
 INDICATORS = [
     "data_quality", "data_governance", "data_integration",          # D1
     "system_capability", "ai_tooling", "infrastructure_resilience", # D2
@@ -20,7 +20,7 @@ INDICATORS = [
     "bias_mitigation", "explainability", "accountability_structures", # D5
 ]
  
-# Sector config — absolute per-indicator base means
+# ── Sector config — absolute per-indicator base means ─────────────────
 # Retail banks: highest D3 regulatory compliance
 # Fintech:      highest D2 technological maturity
 # Debt purchasers: average across board
@@ -29,11 +29,11 @@ SECTOR_CONFIG = {
     "retail_bank": {
         "n": 45,
         "mean_base": np.array([
-            3.2, 3.4, 3.1,   # D1: strong data governance
-            3.0, 2.9, 3.1,   # D2: moderate tech
-            3.8, 3.7, 3.6,   # D3: highest regulatory compliance
-            3.2, 3.2, 3.4,   # D4: leadership driven
-            3.1, 2.9, 3.2,   # D5: moderate ethics
+            3.6, 3.8, 3.5,   # D1: strong data governance
+            3.4, 3.3, 3.5,   # D2: moderate tech
+            4.1, 4.0, 3.9,   # D3: highest regulatory compliance
+            3.6, 3.6, 3.8,   # D4: leadership driven
+            3.5, 3.3, 3.6,   # D5: moderate ethics
         ]),
     },
     "debt_purchaser": {
@@ -49,11 +49,11 @@ SECTOR_CONFIG = {
     "fintech_lender": {
         "n": 38,
         "mean_base": np.array([
-            3.1, 3.0, 3.4,   # D1: strong integration
-            3.4, 3.5, 3.2,   # D2: highest tech maturity
-            3.1, 3.1, 3.0,   # D3: moderate compliance
-            3.2, 3.1, 3.1,   # D4: talent strong
-            3.2, 3.3, 3.1,   # D5: explainability focus
+            3.4, 3.3, 3.7,   # D1: strong integration
+            3.8, 3.9, 3.6,   # D2: highest tech maturity
+            3.4, 3.4, 3.3,   # D3: moderate compliance
+            3.6, 3.5, 3.5,   # D4: talent strong
+            3.6, 3.7, 3.5,   # D5: explainability focus
         ]),
     },
     "credit_union": {
@@ -68,15 +68,15 @@ SECTOR_CONFIG = {
     },
 }
  
-# Size distribution (spec Section 4.2)
+# ── Size distribution (spec Section 4.2) ─────────────────────────────
 SIZE_CONFIG = {
-    "large": {"n": 45, "size_boost":  0.4},
+    "large": {"n": 45, "size_boost":  0.6},
     "mid":   {"n": 60, "size_boost":  0.1},
-    "small": {"n": 45, "size_boost": -0.2},
+    "small": {"n": 45, "size_boost": -0.3},
 }
  
  
-# Correlation matrix (15x15, positive semi-definite) 
+# ── Correlation matrix (15x15, positive semi-definite) ───────────────
  
 def _build_cov_matrix(std: float = 0.85) -> np.ndarray:
     """Build a PSD covariance matrix encoding realistic indicator correlations.
@@ -125,7 +125,7 @@ def _build_cov_matrix(std: float = 0.85) -> np.ndarray:
     return S @ C_psd @ S
  
  
-# ── Institution name generator ────────────────────────────────────────
+# ── Institution name generator 
 _SUFFIXES = [
     "Credit Solutions", "Finance Group", "Capital Services",
     "Lending Partners", "Debt Management", "Financial Services",
@@ -144,7 +144,7 @@ def _make_name(used: set) -> str:
     return f"UK Institution {len(used) + 1}"
  
  
-# ── Main generator ────────────────────────────────────────────────────
+#  Main generator 
  
 def generate_synthetic_institutions(
     output_path: str = "data/synthetic_institutions.csv",
@@ -219,7 +219,7 @@ def generate_synthetic_institutions(
     return df
  
  
-# CLI entry point 
+# ── CLI entry point 
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -239,3 +239,4 @@ if __name__ == "__main__":
     print()
     print("describe():")
     print(df[INDICATORS].describe().round(2).to_string())
+ 
