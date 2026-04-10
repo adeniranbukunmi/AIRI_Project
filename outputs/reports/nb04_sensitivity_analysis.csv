@@ -1,0 +1,11 @@
+dimension,perturbation,base_weight,perturbed_weight,weight_sum,MASC,robust
+data_infrastructure,plus_5pct,0.2,0.25,1.0,0.8258,True
+data_infrastructure,minus_5pct,0.2,0.15,1.0,0.8258,True
+technological_maturity,plus_5pct,0.2,0.25,1.0,0.8043,True
+technological_maturity,minus_5pct,0.2,0.15,1.0,0.8043,True
+regulatory_compliance,plus_5pct,0.25,0.3,1.0,0.795,True
+regulatory_compliance,minus_5pct,0.25,0.2,1.0,0.795,True
+organisational_capability,plus_5pct,0.2,0.25,1.0,0.7524,True
+organisational_capability,minus_5pct,0.2,0.15,1.0,0.7524,True
+ethical_governance,plus_5pct,0.15,0.2,1.0,0.7517,True
+ethical_governance,minus_5pct,0.15,0.1,1.0,0.7517,True
