@@ -1,381 +1,305 @@
-# app/pages/1_Assessment.py
-# ──────────────────────────────────────────────────────────────────────
-# AIRI Page 1 — Assessment
-# 15 sliders → live AIRI score + tier badge + radar chart +
-# dimension table + top 3 recommendations + SHAP waterfall
-# ──────────────────────────────────────────────────────────────────────
-
 import sys
 from pathlib import Path
 
-import joblib
-import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-import shap
 import streamlit as st
 
-# ── Path & imports ────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.airi_engine import AIRIConfig, AIRIScorer, AIRIRecommender
+from src.airi_engine import AIRIConfig, AIRIScorer
 
-# ── Cached resource loaders ───────────────────────────────────────────
+DIMENSION_ORDER = [
+    "Data",
+    "Technological",
+    "Regulatory",
+    "Organisational",
+    "Ethical",
+]
+
+DIMENSIONS = {
+    "Data": {
+        "title": "Data Infrastructure",
+        "items": [
+            {"id": "q01", "indicator": "data_quality", "question": "Our organization has centralized, accessible data repositories with clear data governance policies."},
+            {"id": "q02", "indicator": "data_governance", "question": "We have established data quality metrics and regularly audit data accuracy, completeness, and consistency."},
+            {"id": "q03", "indicator": "data_integration", "question": "Our data infrastructure supports real-time data processing and integration across systems."},
+            {"id": "q04", "indicator": "data_governance", "question": "Data ownership and stewardship roles are clearly defined across business and technology teams."},
+            {"id": "q05", "indicator": "data_quality", "question": "We have proactive controls to detect and resolve missing, inconsistent, or duplicate data before model use."},
+        ],
+    },
+    "Technological": {
+        "title": "Technological Maturity",
+        "items": [
+            {"id": "q06", "indicator": "system_capability", "question": "Our AI systems are deployed on scalable infrastructure that supports production workloads."},
+            {"id": "q07", "indicator": "ai_tooling", "question": "We use established ML tooling and model lifecycle practices for development and monitoring."},
+            {"id": "q08", "indicator": "infrastructure_resilience", "question": "We have tested resilience and disaster recovery plans for AI services."},
+            {"id": "q09", "indicator": "system_capability", "question": "AI models are monitored for performance degradation and operational health in production."},
+            {"id": "q10", "indicator": "ai_tooling", "question": "Our model deployment process is automated and repeatable across environments."},
+        ],
+    },
+    "Regulatory": {
+        "title": "Regulatory Compliance",
+        "items": [
+            {"id": "q11", "indicator": "fca_alignment", "question": "Our AI governance framework aligns with FCA guidance and internal compliance standards."},
+            {"id": "q12", "indicator": "consumer_duty", "question": "Consumer Duty requirements are explicitly mapped to AI use cases and monitored."},
+            {"id": "q13", "indicator": "audit_trail", "question": "AI decisions are captured with an auditable and retrievable trail."},
+            {"id": "q14", "indicator": "fca_alignment", "question": "Regulatory obligations are reviewed and updated as part of model lifecycle governance."},
+            {"id": "q15", "indicator": "audit_trail", "question": "We can provide end-to-end evidence for how an AI-assisted decision was made."},
+        ],
+    },
+    "Organisational": {
+        "title": "Organisational Capability",
+        "items": [
+            {"id": "q16", "indicator": "talent_readiness", "question": "Our organization has dedicated teams or roles responsible for AI strategy and implementation."},
+            {"id": "q17", "indicator": "change_management", "question": "We have established change management processes to support AI adoption across the organization."},
+            {"id": "q18", "indicator": "leadership_commitment", "question": "Our staff receive regular training on AI literacy, data skills, and responsible AI practices."},
+            {"id": "q19", "indicator": "leadership_commitment", "question": "Leadership demonstrates commitment to AI initiatives with clear vision and allocated resources."},
+            {"id": "q20", "indicator": "talent_readiness", "question": "We have cross-functional collaboration between IT, risk, compliance, and business units for AI projects."},
+        ],
+    },
+    "Ethical": {
+        "title": "Ethical Governance",
+        "items": [
+            {"id": "q21", "indicator": "bias_mitigation", "question": "Our organization has established AI ethics principles and guidelines aligned with industry standards."},
+            {"id": "q22", "indicator": "bias_mitigation", "question": "We conduct fairness and bias assessments for AI models before deployment."},
+            {"id": "q23", "indicator": "explainability", "question": "Our AI systems include explainability features and documentation for stakeholder understanding."},
+            {"id": "q24", "indicator": "accountability_structures", "question": "We have governance structures (e.g., AI ethics committee) to oversee responsible AI deployment."},
+            {"id": "q25", "indicator": "accountability_structures", "question": "Our organization has processes for ongoing monitoring of AI system impacts on vulnerable customers."},
+        ],
+    },
+}
+
+INDICATOR_KEYS = [
+    "data_quality", "data_governance", "data_integration",
+    "system_capability", "ai_tooling", "infrastructure_resilience",
+    "fca_alignment", "consumer_duty", "audit_trail",
+    "talent_readiness", "change_management", "leadership_commitment",
+    "bias_mitigation", "explainability", "accountability_structures",
+]
+QUESTION_IDS = [
+    q["id"]
+    for dim in DIMENSION_ORDER
+    for q in DIMENSIONS[dim]["items"]
+]
+
+st.markdown(
+    """
+    <style>
+    .assessment-end-label {
+        font-size: 0.76rem;
+        color: #6B7280;
+        white-space: nowrap;
+    }
+    .assessment-end-label-wrap {
+        height: 2.2rem;
+        display: flex;
+        align-items: center;
+    }
+    .assessment-end-label-wrap.left {
+        justify-content: flex-end;
+        padding-right: 0.35rem;
+    }
+    .assessment-end-label-wrap.right {
+        justify-content: flex-start;
+        padding-left: 0.35rem;
+    }
+    [data-testid="stPills"] [role="radiogroup"] {
+        display: flex !important;
+        gap: 8px !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stPills"] > div {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stPills"] [role="radio"] {
+        min-width: 56px !important;
+        height: 42px !important;
+        margin: 0 !important;
+        border: 1px solid #D1D5DB !important;
+        border-radius: 0 !important;
+        background: #FFFFFF !important;
+        color: #374151 !important;
+        justify-content: center !important;
+        box-shadow: none !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stPills"] button {
+        min-width: 56px !important;
+        height: 42px !important;
+        padding: 0 14px !important;
+        border-radius: 0 !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stPills"] button p {
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stPills"] [role="radio"][aria-checked="true"] {
+        background: #2563EB !important;
+        border-color: #2563EB !important;
+        color: #FFFFFF !important;
+    }
+    [data-testid="stPills"] [role="radio"]:hover {
+        border-color: #93C5FD !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 @st.cache_resource
 def load_config():
     return AIRIConfig(str(PROJECT_ROOT / "airi_config.yaml"))
+
 
 @st.cache_resource
 def load_scorer():
     return AIRIScorer(load_config())
 
-@st.cache_resource
-def load_recommender():
-    return AIRIRecommender(load_config())
 
-@st.cache_resource
-def load_xgb_model():
-    return joblib.load(PROJECT_ROOT / "models" / "xgb_model.pkl")
+def get_progress(scores_dict):
+    answered = sum(1 for v in scores_dict.values() if v >= 0)
+    return answered
 
-@st.cache_data
-def load_cohort():
-    return pd.read_csv(PROJECT_ROOT / "data" / "scored_institutions.csv")
 
-# ── Tier colour map (spec Section 7.3) ───────────────────────────────
-TIER_COLOURS = {
-    "nascent":     "#DC2626",
-    "developing":  "#D97706",
-    "established": "#059669",
-    "leading":     "#1B3A6B",
-}
+if "assessment_scores" not in st.session_state or set(st.session_state.assessment_scores.keys()) != set(QUESTION_IDS):
+    st.session_state.assessment_scores = {qid: -1 for qid in QUESTION_IDS}
+if "assessment_dim_idx" not in st.session_state:
+    st.session_state.assessment_dim_idx = 0
+if "assessment_dimension_picker" not in st.session_state:
+    st.session_state.assessment_dimension_picker = DIMENSION_ORDER[st.session_state.assessment_dim_idx]
 
-# ── Indicator tooltips (scoring guidance from spec Sections 3.2–3.6) ─
-TOOLTIPS = {
-    "data_quality":
-        "1 = No data quality controls.\n"
-        "3 = Periodic quality checks exist.\n"
-        "5 = Automated real-time data quality monitoring with SLAs.",
-    "data_governance":
-        "1 = No formal governance.\n"
-        "3 = Data governance policy exists but inconsistently applied.\n"
-        "5 = Mature governance with data stewards, lineage tracking, and audit trails.",
-    "data_integration":
-        "1 = Siloed systems, manual exports.\n"
-        "3 = Partial API integrations.\n"
-        "5 = Unified data platform with real-time integration across all operational systems.",
-    "system_capability":
-        "1 = No ML infrastructure.\n"
-        "3 = Ad hoc ML experimentation exists.\n"
-        "5 = Production ML platform with CI/CD, model registries, and monitoring.",
-    "ai_tooling":
-        "1 = No AI tools deployed.\n"
-        "3 = Some ML libraries used in isolated projects.\n"
-        "5 = Mature MLOps stack with automated retraining and drift detection.",
-    "infrastructure_resilience":
-        "1 = No resilience planning for AI.\n"
-        "3 = Basic DR plans.\n"
-        "5 = Fully tested resilience framework covering AI workloads with documented RTO/RPO.",
-    "fca_alignment":
-        "1 = No awareness of FCA AI guidance (DP5/22).\n"
-        "3 = Partial alignment.\n"
-        "5 = Full documented alignment with FCA principles; internal compliance reviews completed.",
-    "consumer_duty":
-        "1 = Consumer Duty obligations not mapped to AI processes.\n"
-        "3 = Mapping in progress.\n"
-        "5 = All AI touchpoints audited against Consumer Duty; outcomes monitoring in place.",
-    "audit_trail":
-        "1 = No audit capability for AI decisions.\n"
-        "3 = Manual audit logs.\n"
-        "5 = Automated, immutable audit trail for all AI-influenced decisions with retrieval SLA.",
-    "talent_readiness":
-        "1 = No AI skills internally.\n"
-        "3 = Small AI team; limited broader literacy.\n"
-        "5 = Organisation-wide AI literacy programme; dedicated AI governance roles.",
-    "change_management":
-        "1 = No structured change process for AI adoption.\n"
-        "3 = Ad hoc change management.\n"
-        "5 = Formal AI change management framework with stakeholder engagement.",
-    "leadership_commitment":
-        "1 = AI not on senior leadership agenda.\n"
-        "3 = Executive sponsor identified.\n"
-        "5 = AI strategy owned at board level; dedicated AI investment budget; KPIs tracked.",
-    "bias_mitigation":
-        "1 = No bias awareness.\n"
-        "3 = Ad hoc bias checks on some models.\n"
-        "5 = Systematic bias testing framework (pre/post-deployment) with documented remediation.",
-    "explainability":
-        "1 = Black-box AI with no explanation capability.\n"
-        "3 = Some XAI methods used.\n"
-        "5 = SHAP/LIME applied to all customer-facing AI; explanations logged.",
-    "accountability_structures":
-        "1 = No formal AI accountability.\n"
-        "3 = Responsibility assigned informally.\n"
-        "5 = Documented accountability framework; named AI owner per system; escalation paths.",
-}
+# Apply one-shot dimension navigation requests BEFORE rendering the picker widget.
+if "assessment_dim_goto" in st.session_state:
+    goto_idx = max(0, min(int(st.session_state.assessment_dim_goto), len(DIMENSION_ORDER) - 1))
+    st.session_state.assessment_dim_idx = goto_idx
+    st.session_state.assessment_dimension_picker = DIMENSION_ORDER[goto_idx]
+    del st.session_state.assessment_dim_goto
 
-# ── Dimension metadata ────────────────────────────────────────────────
-DIMENSIONS = {
-    "Data Infrastructure":       ["data_quality", "data_governance", "data_integration"],
-    "Technological Maturity":    ["system_capability", "ai_tooling", "infrastructure_resilience"],
-    "Regulatory Compliance":     ["fca_alignment", "consumer_duty", "audit_trail"],
-    "Organisational Capability": ["talent_readiness", "change_management", "leadership_commitment"],
-    "Ethical Governance":        ["bias_mitigation", "explainability", "accountability_structures"],
-}
-DIM_SCORE_COLS = ["score_d1", "score_d2", "score_d3", "score_d4", "score_d5"]
-FEATURE_COLS = list(TOOLTIPS.keys()) + ["sector_enc", "size_enc"]
+scores = st.session_state.assessment_scores
 
-# 
-# PAGE LAYOUT
+answered_count = sum(1 for v in scores.values() if v >= 0)
+progress_pct = answered_count / len(QUESTION_IDS)
 
-st.markdown(
-    "<h1 style='color:#FFFFFF; margin-bottom:0;'>Institution Assessment</h1>"
-    "<p style='color:#FFFFFF; margin-top:4px;'>"
-    "Set each indicator score (1–5) to compute your institution's AIRI readiness profile in real-time.</p>",
-    unsafe_allow_html=True,
+st.markdown("### Assessment Progress")
+st.progress(progress_pct)
+st.caption(f"{answered_count} / {len(QUESTION_IDS)} questions answered")
+
+selected_dim = st.radio(
+    "Assessment Dimension",
+    DIMENSION_ORDER,
+    horizontal=True,
+    key="assessment_dimension_picker",
+    label_visibility="collapsed",
 )
-st.markdown("---")
+st.session_state.assessment_dim_idx = DIMENSION_ORDER.index(selected_dim)
 
-# ── Load resources ────────────────────────────────────────────────────
-config      = load_config()
-scorer      = load_scorer()
-recommender = load_recommender()
-cohort_df   = load_cohort()
+dim_cfg = DIMENSIONS[selected_dim]
+st.markdown(f"## {dim_cfg['title']}")
+st.caption("Rate your organization's capabilities on a scale of 0 (not at all) to 5 (fully implemented).")
 
-try:
-    xgb_model = load_xgb_model()
-    shap_available = True
-except Exception:
-    shap_available = False
+for idx, item in enumerate(dim_cfg["items"], start=1):
+    qid = item["id"]
+    question = item["question"]
+    st.markdown(f"**{idx}. {question}**")
+    gutter_left, compact_row, gutter_right = st.columns([1.9, 4.2, 1.9])
+    with compact_row:
+        left, middle, right = st.columns([1.0, 3.2, 1.0], vertical_alignment="center")
+        with left:
+            st.markdown(
+                "<div class='assessment-end-label-wrap left'>"
+                "<span class='assessment-end-label'>Not at all</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        with middle:
+            widget_key = f"q_{qid}"
+            if widget_key not in st.session_state and scores[qid] >= 0:
+                # Restore previously selected value when returning to this dimension.
+                st.session_state[widget_key] = scores[qid]
+            st.pills(
+                f"{selected_dim}-{idx}",
+                options=[0, 1, 2, 3, 4, 5],
+                selection_mode="single",
+                label_visibility="collapsed",
+                key=widget_key,
+            )
+            current = st.session_state.get(widget_key, scores[qid] if scores[qid] >= 0 else None)
+        with right:
+            st.markdown(
+                "<div class='assessment-end-label-wrap right'>"
+                "<span class='assessment-end-label'>Fully implemented</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+    # Be defensive: single-mode pills may store scalar or list.
+    if isinstance(current, list):
+        current = current[0] if current else None
 
-cohort_dim_means = cohort_df[DIM_SCORE_COLS].mean().values
-
-# ── Two-column layout: sliders left, results right 
-col_sliders, col_results = st.columns([1, 1.6], gap="large")
-
-# ── LEFT: Indicator sliders grouped by dimension 
-with col_sliders:
-    st.markdown("### Indicator Scores")
-    st.caption("Expand each dimension and rate your institution 1–5.")
-
-    slider_values = {}
-    for dim_name, indicators in DIMENSIONS.items():
-        with st.expander(f"**{dim_name}**", expanded=False):
-            for ind in indicators:
-                label = ind.replace("_", " ").title()
-                slider_values[ind] = st.slider(
-                    label=label,
-                    min_value=1,
-                    max_value=5,
-                    value=3,
-                    step=1,
-                    help=TOOLTIPS[ind],
-                    key=f"slider_{ind}",
-                )
-
-# ── Score this institution 
-input_row = pd.Series({
-    **slider_values,
-    "institution_id":   "ASSESSMENT",
-    "institution_name": "Your Institution",
-    "sector":           "retail_bank",
-    "institution_size": "mid",
-})
-score_result = scorer.score_institution(input_row)
-scored_row   = pd.Series({**input_row, **score_result})
-
-airi_score    = score_result["airi_score"]
-tier          = score_result["readiness_tier"]
-tier_colour   = TIER_COLOURS[tier]
-dim_scores    = [score_result[c] for c in DIM_SCORE_COLS]
-
-# ── RIGHT: Results 
-with col_results:
-
-    # ── AIRI Score metric + tier badge 
-    r1, r2 = st.columns([1, 1])
-    with r1:
-        st.metric(
-            label="AIRI Composite Score",
-            value=f"{airi_score:.1f} / 100",
-            delta=f"{airi_score - cohort_df['airi_score'].mean():.1f} vs cohort avg",
-        )
-    with r2:
-        st.markdown(
-            f"<div style='"
-            f"background:{tier_colour}; color:white; border-radius:24px;"
-            f"padding:14px 20px; text-align:center; margin-top:8px;"
-            f"font-size:1.1rem; font-weight:700; letter-spacing:1px;'>"
-            f"{tier.upper()}"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("---")
-
-    # ── Radar chart: this institution vs cohort average ──────────────
-    radar_labels = ["Data\nInfra", "Tech\nMaturity",
-                    "Regulatory", "Org\nCapability", "Ethical\nGov"]
-    angles = list(radar_labels) + [radar_labels[0]]
-    inst_vals   = dim_scores + [dim_scores[0]]
-    cohort_vals = list(cohort_dim_means) + [cohort_dim_means[0]]
-
-    fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(
-        r=inst_vals, theta=angles,
-        fill="toself", name="Your Institution",
-        line=dict(color=tier_colour, width=2.5),
-        fillcolor=tier_colour, opacity=0.25,
-    ))
-    fig_radar.add_trace(go.Scatterpolar(
-        r=cohort_vals, theta=angles,
-        fill="toself", name="Cohort Average",
-        line=dict(color="#FFFFFF", width=1.5, dash="dash"),
-        fillcolor="#FFFFFF", opacity=0.10,
-    ))
-    fig_radar.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100],
-                            tickfont=dict(size=9)),
-        ),
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.15),
-        margin=dict(t=30, b=40, l=40, r=40),
-        height=320,
-        title=dict(text="Dimension Scores vs Cohort Average",
-                   font=dict(size=13, color="#FFFFFF")),
-    )
-    st.plotly_chart(fig_radar, use_container_width=True)
-
-    # ── Dimension score table with progress bars ─────────────────────
-    st.markdown("####  Dimension Breakdown")
-    for i, (dim_name, score) in enumerate(
-        zip(list(DIMENSIONS.keys()), dim_scores)
-    ):
-        gap       = 100 - score
-        bar_pct   = int(score)
-        bar_html  = (
-            f"<div style='background:#E5E7EB; border-radius:4px; height:10px; width:100%;'>"
-            f"<div style='background:{tier_colour}; width:{bar_pct}%; "
-            f"height:10px; border-radius:4px;'></div></div>"
-        )
-        st.markdown(
-            f"<div style='display:flex; justify-content:space-between; "
-            f"font-size:0.85rem; margin-bottom:2px;'>"
-            f"<span style='color:#374151;'>{dim_name}</span>"
-            f"<span style='font-weight:700; color:{tier_colour};'>"
-            f"{score:.1f}</span></div>"
-            f"{bar_html}<div style='margin-bottom:8px;'></div>",
-            unsafe_allow_html=True,
-        )
-
-
-# ── FULL WIDTH: Recommendations + SHAP ───────────────────────────────
-st.markdown("---")
-rec_col, shap_col = st.columns([1, 1], gap="large")
-
-# ── Top 3 recommendations ─────────────────────────────────────────────
-with rec_col:
-    st.markdown("#### Top 3 Priority Recommendations")
-    top3 = recommender.top_n(scored_row, n=3)
-    priority_colours = ["#DC2626", "#D97706", "#059669"]
-    for rec in top3:
-        rank_colour = priority_colours[rec["priority_rank"] - 1]
-        st.markdown(
-            f"<div style='border-left: 4px solid {rank_colour}; "
-            f"background:#F9FAFB; border-radius:6px; "
-            f"padding:12px 16px; margin-bottom:12px;'>"
-            f"<div style='font-size:0.75rem; color:{rank_colour}; "
-            f"font-weight:700; text-transform:uppercase; letter-spacing:0.5px;'>"
-            f"Priority {rec['priority_rank']} — {rec['dimension']} "
-            f"(Gap: {rec['gap_score']:.0f})</div>"
-            f"<div style='font-size:0.9rem; font-weight:600; "
-            f"color:#111827; margin:6px 0 4px 0;'>{rec['action']}</div>"
-            f"<div style='font-size:0.82rem; color:#6B7280;'>{rec['rationale']}</div>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-# ── SHAP waterfall ────────────────────────────────────────────────────
-with shap_col:
-    st.markdown("#### SHAP Feature Contributions")
-    if not shap_available:
-        st.info("XGBoost model not found. Run Notebook 03 first to generate models/xgb_model.pkl")
+    if current is None:
+        scores[qid] = -1
     else:
-        try:
-            from sklearn.preprocessing import LabelEncoder
-            sector_enc = LabelEncoder().fit(
-                ["credit_union", "debt_purchaser", "fintech_lender", "retail_bank"]
-            ).transform(["retail_bank"])[0]
-            size_enc = LabelEncoder().fit(
-                ["large", "mid", "small"]
-            ).transform(["mid"])[0]
+        scores[qid] = int(current)
+    st.divider()
 
-            x_input = np.array([[
-                *[slider_values[f] for f in list(TOOLTIPS.keys())],
-                sector_enc, size_enc
-            ]])
+all_answered = all(v >= 0 for v in scores.values())
+is_last_dimension = st.session_state.assessment_dim_idx == (len(DIMENSION_ORDER) - 1)
 
-            explainer   = shap.TreeExplainer(xgb_model)
-            shap_vals   = explainer.shap_values(x_input)
+c1, c2, c3 = st.columns([1, 3.2, 1])
+with c1:
+    if st.button("Previous", use_container_width=True):
+        new_idx = max(st.session_state.assessment_dim_idx - 1, 0)
+        st.session_state.assessment_dim_goto = new_idx
+        st.rerun()
+with c2:
+    st.markdown("&nbsp;", unsafe_allow_html=True)
+with c3:
+    if is_last_dimension:
+        if st.button(
+            "Calculate Results",
+            type="primary",
+            use_container_width=True,
+            disabled=not all_answered,
+        ):
+            scorer = load_scorer()
+            indicator_buckets = {k: [] for k in INDICATOR_KEYS}
+            for dim in DIMENSION_ORDER:
+                for item in DIMENSIONS[dim]["items"]:
+                    raw_value = scores[item["id"]]
+                    indicator_buckets[item["indicator"]].append(max(raw_value, 1))
 
-            # Use the predicted class for waterfall
-            pred_class = int(xgb_model.predict(x_input)[0])
-            if isinstance(shap_vals, list):
-                sv  = shap_vals[pred_class][0]
-                bv  = explainer.expected_value[pred_class] \
-                      if isinstance(explainer.expected_value, (list, np.ndarray)) \
-                      else explainer.expected_value
-            else:
-                sv  = shap_vals[0]
-                bv  = explainer.expected_value
+            indicator_scores = {}
+            for indicator, values in indicator_buckets.items():
+                if values:
+                    indicator_scores[indicator] = int(round(sum(values) / len(values)))
+                else:
+                    indicator_scores[indicator] = 1
 
-            # Build Plotly waterfall from SHAP values
-            feat_names    = [f.replace("_", " ").title() for f in FEATURE_COLS]
-            shap_series   = pd.Series(sv, index=feat_names).sort_values(key=abs, ascending=False).head(10)
-            measure       = ["relative"] * len(shap_series) + ["total"]
-            x_vals        = list(shap_series.values) + [sum(shap_series.values)]
-            y_labels      = list(shap_series.index) + ["Total SHAP"]
-            bar_colours   = ["#059669" if v >= 0 else "#DC2626" for v in x_vals]
-
-            fig_shap = go.Figure(go.Waterfall(
-                orientation="h",
-                measure=measure,
-                x=x_vals,
-                y=y_labels,
-                connector=dict(line=dict(color="#D1D5DB", width=1)),
-                increasing=dict(marker=dict(color="#059669")),
-                decreasing=dict(marker=dict(color="#DC2626")),
-                totals=dict(marker=dict(color="#1B3A6B")),
-                textposition="outside",
-                text=[f"{v:+.3f}" for v in x_vals],
-                textfont=dict(size=9),
-            ))
-            fig_shap.update_layout(
-                title=dict(
-                    text=f"Top 10 Feature Contributions<br>"
-                         f"<sup>Predicted tier: {['Nascent','Developing','Established','Leading'][pred_class]}</sup>",
-                    font=dict(size=12, color="#1B3A6B")
-                ),
-                height=400,
-                margin=dict(t=60, b=20, l=160, r=60),
-                xaxis_title="SHAP Value",
-                plot_bgcolor="white",
-                paper_bgcolor="white",
+            assessment_row = pd.Series(
+                {
+                    **indicator_scores,
+                    "institution_id": "ASSESSMENT",
+                    "institution_name": "Your Institution",
+                    "sector": "retail_bank",
+                    "institution_size": "mid",
+                }
             )
-            st.plotly_chart(fig_shap, use_container_width=True)
-            st.caption(
-                "Green bars push toward higher tier · Red bars push toward lower tier"
-            )
-        except Exception as e:
-            st.warning(f"SHAP chart unavailable: {e}")
-
-# Footer 
-st.markdown("---")
-st.markdown(
-    "<div style='text-align:center; font-size:0.75rem; color:#9CA3AF;'>"
-    "AIRI v1.0 · Scoring engine: src/airi_engine.py · "
-    "Config: airi_config.yaml · All computations offline"
-    "</div>",
-    unsafe_allow_html=True,
-)
+            result = scorer.score_institution(assessment_row)
+            st.session_state.assessment_result = result
+            st.session_state.nav_goto = "Results"
+            st.rerun()
+    else:
+        if st.button("Next Dimension", use_container_width=True):
+            new_idx = min(st.session_state.assessment_dim_idx + 1, len(DIMENSION_ORDER) - 1)
+            st.session_state.assessment_dim_goto = new_idx
+            st.rerun()

@@ -1,163 +1,179 @@
-# app/pages/2_Cohort_Dashboard.py
-# ──────────────────────────────────────────────────────────────────────
-# AIRI Page 2 — Cohort Dashboard
-# Score histogram | Tier donut | Sector bar chart | Dimension heatmap
-# ──────────────────────────────────────────────────────────────────────
-
-import sys
-from pathlib import Path
-
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+CARD_STYLE = (
+    "background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; "
+    "padding:18px; height:100%;"
+)
 
-# ── Constants ─────────────────────────────────────────────────────────
-TIER_COLOURS = {
-    "nascent":     "#DC2626",
-    "developing":  "#D97706",
-    "established": "#059669",
-    "leading":     "#1B3A6B",
-}
-TIER_ORDER  = ["nascent", "developing", "established", "leading"]
-DIM_COLS    = ["score_d1","score_d2","score_d3","score_d4","score_d5"]
-DIM_LABELS  = ["D1 Data Infra","D2 Tech Maturity",
-               "D3 Regulatory","D4 Org Capability","D5 Ethical Gov"]
-
-@st.cache_data
-def load_cohort():
-    return pd.read_csv(PROJECT_ROOT / "data" / "scored_institutions.csv")
-
-# ── Page header ───────────────────────────────────────────────────────
 st.markdown(
-    "<h1 style='color:#1B3A6B;'>📊 Cohort Dashboard</h1>"
-    "<p style='color:#6B7280;'>UK debt management institution cohort — 150 synthetic profiles.</p>",
+    """
+    <style>
+    .airi-hero-card {
+        position: relative;
+        overflow: hidden;
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 14px;
+    }
+    .airi-hero-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, #2563EB 0%, #60A5FA 100%);
+    }
+    .airi-hero-motif {
+        position: absolute;
+        right: 22px;
+        top: 18px;
+        display: flex;
+        gap: 8px;
+        opacity: 0.95;
+    }
+    .airi-hero-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #BFDBFE;
+        border: 1px solid #93C5FD;
+    }
+    .airi-hero-dot:nth-child(2) { background: #93C5FD; }
+    .airi-hero-dot:nth-child(3) { background: #60A5FA; }
+    .stButton > button {
+        background: #2563EB !important;
+        color: #FFFFFF !important;
+        border: 1px solid #2563EB !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+    }
+    .stButton > button:hover {
+        background: #1D4ED8 !important;
+        border-color: #1D4ED8 !important;
+        color: #FFFFFF !important;
+    }
+    .stButton > button:focus {
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25) !important;
+    }
+    .airi-hero-title {
+        margin: 0;
+        color: #111827 !important;
+        font-size: 2.1rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .airi-hero-copy {
+        margin-top: 8px;
+        color: #374151 !important;
+        font-size: 1rem;
+        max-width: 760px;
+    }
+    .airi-icon-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        margin-right: 8px;
+        background: linear-gradient(145deg, #EFF6FF, #F5F3FF);
+        border: 1px solid #E5E7EB;
+        font-size: 1.25rem;
+    }
+    .airi-card-title {
+        font-weight: 700;
+        color: #111827 !important;
+        margin: 10px 0 6px 0;
+    }
+    .airi-card-desc {
+        font-size: 0.84rem;
+        color: #4B5563 !important;
+        line-height: 1.45;
+    }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
-st.markdown("---")
 
-df = load_cohort()
-
-# ── KPI row ───────────────────────────────────────────────────────────
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("Total Institutions",  len(df))
-k2.metric("Mean AIRI Score",     f"{df['airi_score'].mean():.1f}")
-k3.metric("% At Leading Tier",
-          f"{(df['readiness_tier']=='leading').mean()*100:.1f}%")
-k4.metric("% At Nascent Tier",
-          f"{(df['readiness_tier']=='nascent').mean()*100:.1f}%")
-
-st.markdown("---")
-
-# ── Row 1: histogram + donut ──────────────────────────────────────────
-h_col, d_col = st.columns([1.4, 1], gap="large")
-
-with h_col:
-    st.markdown("#### AIRI Score Distribution")
-    fig_hist = go.Figure()
-    for tier in TIER_ORDER:
-        sub = df[df["readiness_tier"] == tier]["airi_score"]
-        fig_hist.add_trace(go.Histogram(
-            x=sub, name=tier.capitalize(),
-            marker_color=TIER_COLOURS[tier],
-            opacity=0.85, nbinsx=20,
-        ))
-    for b in [40, 60, 80]:
-        fig_hist.add_vline(x=b, line_dash="dash",
-                           line_color="#374151", line_width=1,
-                           annotation_text=str(b),
-                           annotation_position="top")
-    fig_hist.update_layout(
-        barmode="stack",
-        xaxis_title="AIRI Score (0–100)",
-        yaxis_title="Count",
-        legend=dict(orientation="h", y=-0.2),
-        height=320, margin=dict(t=20,b=60,l=40,r=20),
-        plot_bgcolor="white", paper_bgcolor="white",
+with st.container(border=True):
+    st.markdown(
+        """
+        <div style="position:relative;">
+          <div class="airi-hero-motif">
+            <span class="airi-hero-dot"></span>
+            <span class="airi-hero-dot"></span>
+            <span class="airi-hero-dot"></span>
+          </div>
+          <h2 class="airi-hero-title">AI Readiness Assessment for Financial Services</h2>
+          <p class="airi-hero-copy">
+            Evaluate your organization's preparedness for deploying AI agents in debt management
+            with our comprehensive readiness framework.
+          </p>
+          <div style="margin-top:8px; margin-bottom:10px;">
+            <span class="airi-icon-pill">🛡️</span>
+            <span class="airi-icon-pill">🗄️</span>
+            <span class="airi-icon-pill">⚙️</span>
+            <span class="airi-icon-pill">⚖️</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    st.plotly_chart(fig_hist, use_container_width=True)
+    cta_col, _ = st.columns([1, 3.5])
+    with cta_col:
+        if st.button("Start Assessment", type="primary", use_container_width=True):
+            st.session_state.nav_goto = "Assessment"
+            st.rerun()
 
-with d_col:
-    st.markdown("#### Readiness Tier Split")
-    tier_counts = df["readiness_tier"].value_counts().reindex(TIER_ORDER).fillna(0)
-    fig_donut = go.Figure(go.Pie(
-        labels=[t.capitalize() for t in TIER_ORDER],
-        values=tier_counts.values,
-        hole=0.55,
-        marker_colors=[TIER_COLOURS[t] for t in TIER_ORDER],
-        textinfo="label+percent",
-        hoverinfo="label+value",
-        textfont_size=11,
-    ))
-    fig_donut.update_layout(
-        showlegend=False,
-        height=320, margin=dict(t=20,b=20,l=20,r=20),
-    )
-    st.plotly_chart(fig_donut, use_container_width=True)
+st.markdown("")
+c1, c2, c3, c4, c5 = st.columns(5)
 
-# ── Row 2: sector bar + dimension heatmap ────────────────────────────
-s_col, hm_col = st.columns([1, 1.6], gap="large")
+cards = [
+    ("🗄️", "Data Infrastructure", "Data governance, quality, and infrastructure"),
+    ("⚙️", "Technological Maturity", "IT capabilities and ML operations"),
+    ("⚖️", "Regulatory Compliance", "FCA compliance and audit frameworks"),
+    ("✅", "Organisational Capability", "Skills, team, and change management"),
+    ("🛡️", "Ethical Governance", "Ethics, fairness, and transparency"),
+]
 
-with s_col:
-    st.markdown("#### Mean AIRI Score by Sector")
-    sector_means = (df.groupby("sector")["airi_score"]
-                      .mean().sort_values(ascending=True))
-    fig_sec = go.Figure(go.Bar(
-        x=sector_means.values,
-        y=[s.replace("_", " ").title() for s in sector_means.index],
-        orientation="h",
-        marker_color=["#1B3A6B","#0D6E8A","#059669","#D97706"],
-        text=[f"{v:.1f}" for v in sector_means.values],
-        textposition="outside",
-    ))
-    fig_sec.update_layout(
-        xaxis=dict(range=[0, 100], title="Mean AIRI Score"),
-        height=280, margin=dict(t=10,b=40,l=10,r=60),
-        plot_bgcolor="white", paper_bgcolor="white",
-    )
-    st.plotly_chart(fig_sec, use_container_width=True)
+for col, (icon, title, desc) in zip([c1, c2, c3, c4, c5], cards):
+    with col:
+        st.markdown(
+            f"""
+            <div style="{CARD_STYLE}">
+              <div class="airi-icon-pill">{icon}</div>
+              <div class="airi-card-title">{title}</div>
+              <div class="airi-card-desc">{desc}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-with hm_col:
-    st.markdown("#### Dimension Score Heatmap by Sector")
-    hm_data = df.groupby("sector")[DIM_COLS].mean().round(1)
-    hm_data.columns = DIM_LABELS
-    fig_hm = go.Figure(go.Heatmap(
-        z=hm_data.values,
-        x=DIM_LABELS,
-        y=[s.replace("_", " ").title() for s in hm_data.index],
-        colorscale="YlOrRd",
-        zmin=0, zmax=100,
-        text=hm_data.values,
-        texttemplate="%{text:.1f}",
-        textfont=dict(size=12, color="black"),
-        hoverongaps=False,
-        colorbar=dict(title="Score"),
-    ))
-    fig_hm.update_layout(
-        height=280,
-        margin=dict(t=10,b=40,l=10,r=20),
-        xaxis=dict(tickangle=-20),
-    )
-    st.plotly_chart(fig_hm, use_container_width=True)
-
-# ── Institution data table ─────────────────────────────────────────────
-st.markdown("---")
-st.markdown("#### 🔎 Full Cohort Table")
-tier_filter = st.multiselect(
-    "Filter by tier:",
-    options=TIER_ORDER,
-    default=TIER_ORDER,
-    format_func=lambda x: x.capitalize(),
-)
-filtered = df[df["readiness_tier"].isin(tier_filter)] if tier_filter else df
-show_cols = ["institution_id","institution_name","sector",
-             "institution_size","airi_score","readiness_tier"]
-st.dataframe(
-    filtered[show_cols].sort_values("airi_score", ascending=False)
-                       .reset_index(drop=True),
-    use_container_width=True,
-    height=300,
+st.markdown("")
+st.markdown(
+    f"""
+    <div style="{CARD_STYLE}">
+      <h3 style="margin-top:0; color:#111827;">About the AI Readiness Index</h3>
+      <div style="display:flex; gap:36px;">
+        <div style="flex:1;">
+          <h4 style="margin:4px 0; color:#1F2937;">Purpose</h4>
+          <p style="font-size:0.92rem; color:#4B5563;">
+            AIRI provides a quantitative assessment of your institution's readiness for responsible AI
+            adoption across data, technology, regulation, organization, and ethics.
+          </p>
+        </div>
+        <div style="flex:1;">
+          <h4 style="margin:4px 0; color:#1F2937;">Methodology</h4>
+          <p style="font-size:0.92rem; color:#4B5563;">
+            The scoring engine applies weighted indicators to produce dimension scores and a single
+            composite index from 0 to 100, mapped into readiness tiers.
+          </p>
+        </div>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
