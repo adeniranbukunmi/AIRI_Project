@@ -1,13 +1,11 @@
 # app/pages/4_Benchmarking.py
-# ──────────────────────────────────────────────────────────────────────
 # AIRI Page 4 — Benchmarking
 # Enter custom scores → compare against sector peers and UK cohort
 # average; percentile rank displayed
-# ──────────────────────────────────────────────────────────────────────
+
 
 import sys
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -41,9 +39,9 @@ def load_scorer():  return AIRIScorer(load_config())
 @st.cache_data
 def load_cohort():  return pd.read_csv(PROJECT_ROOT / "data" / "scored_institutions.csv")
 
-# ── Page header ───────────────────────────────────────────────────────
+# Page header 
 st.markdown(
-    "<h1 style='color:#1B3A6B;'>📈 Benchmarking</h1>"
+    "<h1 style='color:#1B3A6B;'> Benchmarking</h1>"
     "<p style='color:#6B7280;'>Compare your institution against sector "
     "peers and the UK cohort average.</p>",
     unsafe_allow_html=True,
@@ -54,17 +52,16 @@ df      = load_cohort()
 scorer  = load_scorer()
 config  = load_config()
 
-# ── Inputs ────────────────────────────────────────────────────────────
+# Inputs 
 inp_col, res_col = st.columns([1, 1.6], gap="large")
 
 with inp_col:
     st.markdown("### Your Institution")
     inst_name = st.text_input("Institution name (optional)", value="My Institution")
-    sector    = st.selectbox("Sector", ["retail_bank","debt_purchaser",
-                                         "fintech_lender","credit_union"],
-                              format_func=lambda x: x.replace("_"," ").title())
+    sector    = st.selectbox("Sector", ["retail_bank","debt_purchaser", "fintech_lender","credit_union"],
+    format_func=lambda x: x.replace("_"," ").title())
     inst_size = st.selectbox("Size", ["large","mid","small"],
-                              format_func=str.capitalize)
+    format_func=str.capitalize)
     st.markdown("**Indicator scores (1–5):**")
     scores = {}
     for ind in INDICATOR_COLS:
@@ -73,7 +70,7 @@ with inp_col:
             key=f"bench_{ind}"
         )
 
-# ── Score this institution ────────────────────────────────────────────
+#  Score this institution 
 row = pd.Series({
     **scores,
     "institution_id": "BENCH",
@@ -86,7 +83,7 @@ airi_score = result["airi_score"]
 tier       = result["readiness_tier"]
 dim_scores = [result[c] for c in DIM_COLS]
 
-# ── Peer group stats ──────────────────────────────────────────────────
+# Peer group stats 
 peer_df      = df[df["sector"] == sector]
 cohort_means = df[DIM_COLS].mean().values
 peer_means   = peer_df[DIM_COLS].mean().values
@@ -96,7 +93,7 @@ pct_rank = round((df["airi_score"] < airi_score).mean() * 100, 1)
 peer_pct = round((peer_df["airi_score"] < airi_score).mean() * 100, 1)
 
 with res_col:
-    # ── Score + tier badge ─────────────────────────────────────────
+    # Score + tier badge 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Your AIRI Score",   f"{airi_score:.1f}")
     m2.metric("Cohort Percentile", f"{pct_rank}th")
@@ -110,7 +107,7 @@ with res_col:
 
     st.markdown("---")
 
-    # ── Radar: you vs sector peers vs cohort ──────────────────────
+    # Radar: you vs sector peers vs cohort 
     st.markdown("#### Dimension Radar — You vs Peers vs Cohort")
     radar_labels = ["Data\nInfra","Tech\nMaturity","Regulatory",
                     "Org\nCapability","Ethical\nGov"]
@@ -136,7 +133,7 @@ with res_col:
     )
     st.plotly_chart(fig_r, use_container_width=True)
 
-    # ── Grouped bar: dimension scores vs peer avg ─────────────────
+    # Grouped bar: dimension scores vs peer avg 
     st.markdown("#### Dimension Score Comparison")
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
@@ -167,7 +164,7 @@ with res_col:
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-# ── Percentile gauge ──────────────────────────────────────────────────
+# Percentile gauge
 st.markdown("---")
 g1, g2 = st.columns(2)
 
@@ -194,7 +191,7 @@ for col, rank, title in [
     fig_g.update_layout(height=220, margin=dict(t=40,b=10,l=30,r=30))
     col.plotly_chart(fig_g, use_container_width=True)
 
-# ── Top/bottom 5 in sector 
+# Top/bottom 5 in sector 
 st.markdown("---")
 t_col, b_col = st.columns(2)
 show_cols = ["institution_id","institution_name","airi_score","readiness_tier"]

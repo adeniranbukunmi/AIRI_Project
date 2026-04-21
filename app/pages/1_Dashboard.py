@@ -1,8 +1,7 @@
 # app/pages/2_Cohort_Dashboard.py
-# ──────────────────────────────────────────────────────────────────────
 # AIRI Page 2 — Cohort Dashboard
 # Score histogram | Tier donut | Sector bar chart | Dimension heatmap
-# ──────────────────────────────────────────────────────────────────────
+# 
 
 import sys
 from pathlib import Path
@@ -15,7 +14,7 @@ import streamlit as st
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# ── Constants ─────────────────────────────────────────────────────────
+# Constants 
 TIER_COLOURS = {
     "nascent":     "#DC2626",
     "developing":  "#D97706",
@@ -31,9 +30,9 @@ DIM_LABELS  = ["D1 Data Infra","D2 Tech Maturity",
 def load_cohort():
     return pd.read_csv(PROJECT_ROOT / "data" / "scored_institutions.csv")
 
-# ── Page header ───────────────────────────────────────────────────────
+# Page header 
 st.markdown(
-    "<h1 style='color:#1B3A6B;'>📊 Cohort Dashboard</h1>"
+    "<h1 style='color:#1B3A6B;'>Cohort Dashboard</h1>"
     "<p style='color:#6B7280;'>UK debt management institution cohort — 150 synthetic profiles.</p>",
     unsafe_allow_html=True,
 )
@@ -41,7 +40,7 @@ st.markdown("---")
 
 df = load_cohort()
 
-# ── KPI row ───────────────────────────────────────────────────────────
+# KPI row 
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Total Institutions",  len(df))
 k2.metric("Mean AIRI Score",     f"{df['airi_score'].mean():.1f}")
@@ -52,7 +51,7 @@ k4.metric("% At Nascent Tier",
 
 st.markdown("---")
 
-# ── Row 1: histogram + donut ──────────────────────────────────────────
+# Row 1: histogram + donut 
 h_col, d_col = st.columns([1.4, 1], gap="large")
 
 with h_col:
@@ -72,7 +71,7 @@ with h_col:
                            annotation_position="top")
     fig_hist.update_layout(
         barmode="stack",
-        xaxis_title="AIRI Score (0–100)",
+        xaxis_title="AIRI Score (0-100)",
         yaxis_title="Count",
         legend=dict(orientation="h", y=-0.2),
         height=320, margin=dict(t=20,b=60,l=40,r=20),
@@ -98,7 +97,7 @@ with d_col:
     )
     st.plotly_chart(fig_donut, use_container_width=True)
 
-# ── Row 2: sector bar + dimension heatmap ────────────────────────────
+# Row 2: sector bar + dimension heatmap 
 s_col, hm_col = st.columns([1, 1.6], gap="large")
 
 with s_col:
@@ -143,9 +142,9 @@ with hm_col:
     )
     st.plotly_chart(fig_hm, use_container_width=True)
 
-# ── Institution data table ─────────────────────────────────────────────
+# Institution data table 
 st.markdown("---")
-st.markdown("#### 🔎 Full Cohort Table")
+st.markdown("#### Full Cohort Table")
 tier_filter = st.multiselect(
     "Filter by tier:",
     options=TIER_ORDER,
@@ -160,4 +159,10 @@ st.dataframe(
                        .reset_index(drop=True),
     use_container_width=True,
     height=300,
+)
+st.markdown(
+    "<div style='text-align:center;font-size:0.75rem;color:#9CA3AF;margin-top:20px;'>"
+    "AIRI v1.0 . UK Debt Management AI Readiness"
+    "</div>",
+    unsafe_allow_html=True,
 )

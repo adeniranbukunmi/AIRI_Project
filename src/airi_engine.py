@@ -181,7 +181,7 @@ _LIBRARY = {
             {
                 "action": "Conduct a full data asset inventory and classify datasets by "
                         "sensitivity, completeness, and AI-readiness.",
-                "rationale": "Knowing what data you have — and its quality — is the "
+                "rationale": "Knowing what data you have and its quality is the "
                             "foundation step before any governance or integration work can "
                             "be prioritised effectively.",
                 "applies_when": lambda s: s < 40,
@@ -202,7 +202,7 @@ _LIBRARY = {
                         "all deployed AI systems.",
                 "rationale": "Models degrade silently as data distributions shift. Without "
                             "drift detection, an institution cannot demonstrate ongoing "
-                            "model fitness — a core FCA expectation.",
+                            "model fitness: a core FCA expectation.",
                 "applies_when": lambda s: s < 75,
             },
             {
@@ -333,9 +333,7 @@ _LIBRARY = {
     }
         
  
-# ──────────────────────────────────────────────────────────────────────
-# CLASS 3: AIRIRecommender  (full implementation — Step 4)
-# ──────────────────────────────────────────────────────────────────────
+
  
 class AIRIRecommender:
     """Generates prioritised recommendations based on dimension gap scores.

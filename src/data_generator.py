@@ -4,14 +4,14 @@ import pandas as pd
 from pathlib import Path
 from faker import Faker
  
-# ── Global seed ───────────────────────────────────────────────────────
+# Global seed 
 RANDOM_SEED = 42
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 fake = Faker("en_GB")
 fake.seed_instance(RANDOM_SEED)
  
-# ── Indicator columns — order matches spec Section 4.3 ───────────────
+# Indicator columns 
 INDICATORS = [
     "data_quality", "data_governance", "data_integration",          # D1
     "system_capability", "ai_tooling", "infrastructure_resilience", # D2
@@ -20,7 +20,7 @@ INDICATORS = [
     "bias_mitigation", "explainability", "accountability_structures", # D5
 ]
  
-# ── Sector config — absolute per-indicator base means ─────────────────
+# Sector config — absolute per-indicator base means 
 # Retail banks: highest D3 regulatory compliance
 # Fintech:      highest D2 technological maturity
 # Debt purchasers: average across board
@@ -68,7 +68,7 @@ SECTOR_CONFIG = {
     },
 }
  
-# ── Size distribution (spec Section 4.2) ─────────────────────────────
+# Size distribution 
 SIZE_CONFIG = {
     "large": {"n": 45, "size_boost":  0.6},
     "mid":   {"n": 60, "size_boost":  0.1},
@@ -76,7 +76,7 @@ SIZE_CONFIG = {
 }
  
  
-# ── Correlation matrix (15x15, positive semi-definite) ───────────────
+# Correlation matrix (15x15, positive semi definite)
  
 def _build_cov_matrix(std: float = 0.85) -> np.ndarray:
     """Build a PSD covariance matrix encoding realistic indicator correlations.
