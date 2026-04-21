@@ -1,9 +1,8 @@
 # app/pages/1_Assessment.py
-# ──────────────────────────────────────────────────────────────────────
 # AIRI Page 1 — Assessment
 # 15 sliders → live AIRI score + tier badge + radar chart +
 # dimension table + top 3 recommendations + SHAP waterfall
-# ──────────────────────────────────────────────────────────────────────
+# 
 
 import sys
 from pathlib import Path
@@ -15,13 +14,13 @@ import plotly.graph_objects as go
 import shap
 import streamlit as st
 
-# ── Path & imports ────────────────────────────────────────────────────
+# Path & imports 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.airi_engine import AIRIConfig, AIRIScorer, AIRIRecommender
 
-# ── Cached resource loaders ───────────────────────────────────────────
+#  Cached resource loaders 
 @st.cache_resource
 def load_config():
     return AIRIConfig(str(PROJECT_ROOT / "airi_config.yaml"))
@@ -42,7 +41,7 @@ def load_xgb_model():
 def load_cohort():
     return pd.read_csv(PROJECT_ROOT / "data" / "scored_institutions.csv")
 
-# ── Tier colour map (spec Section 7.3) ───────────────────────────────
+# Tier colour map (spec Section 7.3) 
 TIER_COLOURS = {
     "nascent":     "#DC2626",
     "developing":  "#D97706",
@@ -50,7 +49,7 @@ TIER_COLOURS = {
     "leading":     "#1B3A6B",
 }
 
-# ── Indicator tooltips (scoring guidance from spec Sections 3.2–3.6) ─
+# Indicator tooltips (scoring guidance from spec Sections 3.2–3.6) ─
 TOOLTIPS = {
     "data_quality":
         "1 = No data quality controls.\n"
@@ -114,7 +113,7 @@ TOOLTIPS = {
         "5 = Documented accountability framework; named AI owner per system; escalation paths.",
 }
 
-# ── Dimension metadata ────────────────────────────────────────────────
+# Dimension metadata 
 DIMENSIONS = {
     "Data Infrastructure":       ["data_quality", "data_governance", "data_integration"],
     "Technological Maturity":    ["system_capability", "ai_tooling", "infrastructure_resilience"],
@@ -125,18 +124,17 @@ DIMENSIONS = {
 DIM_SCORE_COLS = ["score_d1", "score_d2", "score_d3", "score_d4", "score_d5"]
 FEATURE_COLS = list(TOOLTIPS.keys()) + ["sector_enc", "size_enc"]
 
-# 
-# PAGE LAYOUT
 
+# PAGE LAYOUT
 st.markdown(
-    "<h1 style='color:#FFFFFF; margin-bottom:0;'>Institution Assessment</h1>"
-    "<p style='color:#FFFFFF; margin-top:4px;'>"
-    "Set each indicator score (1–5) to compute your institution's AIRI readiness profile in real-time.</p>",
+    "<h1 style='color:#1B3A6B; margin-bottom:0;'>Institution Assessment</h1>"
+    "<p style='color:#1B3A6B; margin-top:4px;'>"
+    "Set each indicator score (1-5) to compute your institution's AIRI readiness profile in real-time.</p>",
     unsafe_allow_html=True,
 )
 st.markdown("---")
 
-# ── Load resources ────────────────────────────────────────────────────
+# Load resources 
 config      = load_config()
 scorer      = load_scorer()
 recommender = load_recommender()
@@ -150,10 +148,10 @@ except Exception:
 
 cohort_dim_means = cohort_df[DIM_SCORE_COLS].mean().values
 
-# ── Two-column layout: sliders left, results right 
+# Two-column layout: sliders left, results right 
 col_sliders, col_results = st.columns([1, 1.6], gap="large")
 
-# ── LEFT: Indicator sliders grouped by dimension 
+# LEFT: Indicator sliders grouped by dimension 
 with col_sliders:
     st.markdown("### Indicator Scores")
     st.caption("Expand each dimension and rate your institution 1–5.")
@@ -173,7 +171,7 @@ with col_sliders:
                     key=f"slider_{ind}",
                 )
 
-# ── Score this institution 
+# Score this institution 
 input_row = pd.Series({
     **slider_values,
     "institution_id":   "ASSESSMENT",
@@ -189,10 +187,10 @@ tier          = score_result["readiness_tier"]
 tier_colour   = TIER_COLOURS[tier]
 dim_scores    = [score_result[c] for c in DIM_SCORE_COLS]
 
-# ── RIGHT: Results 
+# RIGHT: Results 
 with col_results:
 
-    # ── AIRI Score metric + tier badge 
+    # AIRI Score metric + tier badge 
     r1, r2 = st.columns([1, 1])
     with r1:
         st.metric(
@@ -213,7 +211,7 @@ with col_results:
 
     st.markdown("---")
 
-    # ── Radar chart: this institution vs cohort average ──────────────
+    # Radar chart: this institution vs cohort average 
     radar_labels = ["Data\nInfra", "Tech\nMaturity",
                     "Regulatory", "Org\nCapability", "Ethical\nGov"]
     angles = list(radar_labels) + [radar_labels[0]]
@@ -245,9 +243,14 @@ with col_results:
         title=dict(text="Dimension Scores vs Cohort Average",
                    font=dict(size=13, color="#FFFFFF")),
     )
+    fig_radar.update_layout(
+    font=dict(color="black"),  
+    paper_bgcolor='rgba(0,0,0,0)', 
+    plot_bgcolor='rgba(0,0,0,0)'
+    )
     st.plotly_chart(fig_radar, use_container_width=True)
 
-    # ── Dimension score table with progress bars ─────────────────────
+    #  Dimension score table with progress bars 
     st.markdown("####  Dimension Breakdown")
     for i, (dim_name, score) in enumerate(
         zip(list(DIMENSIONS.keys()), dim_scores)
@@ -270,11 +273,11 @@ with col_results:
         )
 
 
-# ── FULL WIDTH: Recommendations + SHAP ───────────────────────────────
+# FULL WIDTH: Recommendations + SHAP 
 st.markdown("---")
 rec_col, shap_col = st.columns([1, 1], gap="large")
 
-# ── Top 3 recommendations ─────────────────────────────────────────────
+# Top 3 recommendations 
 with rec_col:
     st.markdown("#### Top 3 Priority Recommendations")
     top3 = recommender.top_n(scored_row, n=3)
@@ -296,7 +299,7 @@ with rec_col:
             unsafe_allow_html=True,
         )
 
-# ── SHAP waterfall ────────────────────────────────────────────────────
+# SHAP waterfall 
 with shap_col:
     st.markdown("#### SHAP Feature Contributions")
     if not shap_available:
@@ -370,12 +373,9 @@ with shap_col:
         except Exception as e:
             st.warning(f"SHAP chart unavailable: {e}")
 
-# Footer 
-st.markdown("---")
 st.markdown(
-    "<div style='text-align:center; font-size:0.75rem; color:#9CA3AF;'>"
-    "AIRI v1.0 · Scoring engine: src/airi_engine.py · "
-    "Config: airi_config.yaml · All computations offline"
+    "<div style='text-align:center;font-size:0.75rem;color:#9CA3AF;margin-top:20px;'>"
+    "AIRI v1.0 . UK Debt Management AI Readiness"
     "</div>",
     unsafe_allow_html=True,
 )

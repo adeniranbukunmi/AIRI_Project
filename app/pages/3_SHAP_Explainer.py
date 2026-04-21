@@ -1,9 +1,9 @@
 # app/pages/3_SHAP_Explainer.py
-# ──────────────────────────────────────────────────────────────────────
+
 # AIRI Page 3 — SHAP Explainer
 # Select any institution → SHAP waterfall + contribution table +
 # plain-English narrative
-# ──────────────────────────────────────────────────────────────────────
+
 
 import sys
 from pathlib import Path
@@ -53,7 +53,7 @@ def load_shap():
 
 # ── Page header ───────────────────────────────────────────────────────
 st.markdown(
-    "<h1 style='color:#1B3A6B;'>🔍 SHAP Explainer</h1>"
+    "<h1 style='color:#1B3A6B;'>SHAP Explainer</h1>"
     "<p style='color:#6B7280;'>Select any institution to understand "
     "which indicators drove their AIRI score.</p>",
     unsafe_allow_html=True,
@@ -69,7 +69,7 @@ try:
 except Exception:
     model_ok  = False
 
-# ── Institution selector ──────────────────────────────────────────────
+#  Institution selector 
 df["display"] = df["institution_id"] + " — " + df["institution_name"] + \
                 " (" + df["readiness_tier"].str.capitalize() + \
                 ", " + df["airi_score"].round(1).astype(str) + ")"
@@ -77,7 +77,7 @@ selected = st.selectbox("Select institution:", df["display"].tolist())
 inst_id  = selected.split(" — ")[0]
 row      = df[df["institution_id"] == inst_id].iloc[0]
 
-# ── Institution header ────────────────────────────────────────────────
+# Institution header 
 tier        = row["readiness_tier"]
 tier_colour = TIER_COLOURS[tier]
 
@@ -93,7 +93,7 @@ c4.markdown(
 )
 st.markdown("---")
 
-# ── SHAP waterfall ────────────────────────────────────────────────────
+# SHAP waterfall 
 left, right = st.columns([1.2, 1], gap="large")
 
 with left:
@@ -156,7 +156,7 @@ with left:
     else:
         st.info("Run Notebook 03 to generate models/xgb_model.pkl")
 
-#  Feature contribution table 
+# Feature contribution table 
 with right:
     st.markdown("#### Feature Contribution Table")
 
@@ -176,14 +176,14 @@ with right:
         # Show raw indicator scores as fallback
         ind_data = pd.DataFrame({
             "Indicator": [f.replace("_"," ").title() for f in INDICATOR_COLS],
-            "Score (1–5)": [int(row[f]) for f in INDICATOR_COLS],
+            "Score (1-5)": [int(row[f]) for f in INDICATOR_COLS],
         })
         st.dataframe(ind_data, use_container_width=True, height=380)
         st.caption("Full SHAP values available for test-set institutions only.")
 
 # Plain-English narrative 
 st.markdown("---")
-st.markdown("#### 💬 Plain-English Narrative")
+st.markdown("#### Plain-English Narrative")
 
 dim_names = ["Data Infrastructure","Technological Maturity",
              "Regulatory Compliance","Organisational Capability","Ethical Governance"]
@@ -215,3 +215,10 @@ narrative = (
     f"readiness gap exists relative to the leading-practice benchmark."
 )
 st.info(narrative)
+
+st.markdown(
+    "<div style='text-align:center;font-size:0.75rem;color:#9CA3AF;margin-top:20px;'>"
+    "AIRI v1.0 . UK Debt Management AI Readiness"
+    "</div>",
+    unsafe_allow_html=True,
+)

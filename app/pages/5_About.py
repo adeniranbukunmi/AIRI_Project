@@ -1,13 +1,11 @@
 # app/pages/5_About.py
-# ──────────────────────────────────────────────────────────────────────
 # AIRI Page 5 — About / Methodology
 # Framework overview | Dimension definitions | Regulatory context |
 # Config display
-# ──────────────────────────────────────────────────────────────────────
+
 
 import sys
 from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 import yaml
@@ -26,7 +24,7 @@ TIER_COLOURS = {
     "established": "#059669","leading": "#1B3A6B",
 }
 
-# ── Page header ───────────────────────────────────────────────────────
+# Page header 
 st.markdown(
     "<h1 style='color:#1B3A6B;'> About & Methodology</h1>"
     "<p style='color:#6B7280;'>Framework design, dimension definitions, "
@@ -39,30 +37,30 @@ config = load_config()
 dims   = config.get_dimensions()
 tiers  = config.get_tiers()
 
-# ── Framework overview ────────────────────────────────────────────────
-st.markdown("## 🏛️ What is AIRI?")
+# Framework overview 
+st.markdown("### What is AIRI?")
 st.markdown("""
 **AIRI (AI Readiness Index)** is a quantitative, configurable, and explainable scoring system
 that assesses whether a UK debt management institution is genuinely ready to deploy AI responsibly —
 ethically, technically, and in regulatory compliance.
 
 Given structured input data about an institution's capabilities, AIRI produces:
-- A **composite AIRI score** (0–100) representing overall AI readiness
+- A **composite AIRI score** (0-100) representing overall AI readiness
 - **Dimension-level subscores** showing strengths and gaps across 5 domains
 - A **readiness tier** classification: Nascent / Developing / Established / Leading
 - **SHAP-based explanations** of what drives each institution's specific score
 - **Prioritised recommendations** ordered by gap severity
 """)
 
-# ── Scoring algorithm ─────────────────────────────────────────────────
+# Scoring algorithm 
 st.markdown("---")
-st.markdown("## ⚙️ Scoring Algorithm")
+st.markdown("## Scoring Algorithm")
 st.markdown("""
 The AIRI scoring engine applies a **three-step deterministic algorithm**:
 
-**Step 1 — Normalise raw indicators (1–5 → 0–1)**
+**Step 1 — Normalise raw indicators (1-5 → 0-1)**
 ```
-normalised = (raw_score − likert_min) / (likert_max − likert_min)
+normalised = (raw_score - likert_min) / (likert_max − likert_min)
 ```
 
 **Step 2 — Compute dimension score (0–100)**
@@ -72,19 +70,19 @@ dimension_score = Σ (normalised_indicator × indicator_weight) × 100
 
 **Step 3 — Compute composite AIRI score (0–100)**
 ```
-airi_score = Σ (dimension_score × dimension_weight)
+airi_score = Σ (dimension_score x dimension_weight)
 ```
 All weights are loaded from `airi_config.yaml` — no weight is hardcoded in Python.
 """)
 
-# ── Readiness tiers ───────────────────────────────────────────────────
+# Readiness tiers 
 st.markdown("---")
 st.markdown("##  Readiness Tiers")
 tier_info = {
-    "nascent":     ("0 – 39",  "Critical readiness gaps",           "Foundation-first remediation"),
-    "developing":  ("40 – 59", "Partial readiness",                 "Targeted gap-filling"),
-    "established": ("60 – 79", "Solid foundation for AI",           "Optimisation and monitoring"),
-    "leading":     ("80 – 100","Best-in-class readiness",           "Innovation and knowledge sharing"),
+    "nascent": ("0 – 39",  "Critical readiness gaps",        "Foundation-first remediation"),
+    "developing": ("40 – 59", "Partial readiness",          "Targeted gap-filling"),
+    "established": ("60 – 79", "Solid foundation for AI",     "Optimisation and monitoring"),
+    "leading": ("80 – 100","Best-in-class readiness",        "Innovation and knowledge sharing"),
 }
 cols = st.columns(4)
 for col, (tier, (score_range, interp, action)) in zip(cols, tier_info.items()):
@@ -100,7 +98,7 @@ for col, (tier, (score_range, interp, action)) in zip(cols, tier_info.items()):
         unsafe_allow_html=True,
     )
 
-# ── Dimension definitions ─────────────────────────────────────────────
+# Dimension definitions 
 st.markdown("---")
 st.markdown("##  Five AIRI Dimensions")
 
@@ -149,7 +147,7 @@ for dim_key, (title, desc, indicators) in dim_descriptions.items():
             })
         st.table(pd.DataFrame(rows))
 
-# ── Regulatory context ────────────────────────────────────────────────
+# Regulatory context 
 st.markdown("---")
 st.markdown("## Regulatory Context")
 st.markdown("""
@@ -171,7 +169,7 @@ AI-influenced decisions. AIRI's `audit_trail` indicator measures this capability
 from manual logs (score 3) to automated immutable trails with retrieval SLAs (score 5).
 """)
 
-# ── Live config display ───────────────────────────────────────────────
+# Live config display 
 st.markdown("---")
 st.markdown("##  Live Configuration (airi_config.yaml)")
 st.caption("All weights are loaded from this file at runtime. No weights are hardcoded.")
@@ -198,7 +196,7 @@ st.dataframe(pd.DataFrame(config_rows), use_container_width=True, height=420)
 dim_sum = sum(d["weight"] for d in dims.values())
 st.success(f"✓ Dimension weight sum: {dim_sum:.3f} (valid)")
 
-# ── System info ───────────────────────────────────────────────────────
+# System info 
 st.markdown("---")
 st.markdown("##  System Information")
 c1, c2 = st.columns(2)
@@ -225,7 +223,7 @@ c2.markdown(f"""
 
 st.markdown(
     "<div style='text-align:center;font-size:0.75rem;color:#9CA3AF;margin-top:20px;'>"
-    "AIRI v1.0 · MSc IT Dissertation · UK Debt Management AI Readiness"
+    "AIRI v1.0 . UK Debt Management AI Readiness"
     "</div>",
     unsafe_allow_html=True,
 )
