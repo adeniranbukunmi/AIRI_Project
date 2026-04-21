@@ -42,7 +42,14 @@ def load_xgb():
 
 @st.cache_data
 def load_cohort():
-    return pd.read_csv(PROJECT_ROOT / "data" / "scored_institutions.csv")
+    df = pd.read_csv(PROJECT_ROOT / "data" / "scored_institutions.csv")
+    numeric_cols = INDICATOR_COLS + [
+        "score_d1","score_d2","score_d3","score_d4","score_d5","airi_score"
+    ]
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    return df
 
 @st.cache_data
 def load_shap():
@@ -107,10 +114,21 @@ with left:
 
             # 2. Helper function 
             def clean_val(v):
+                """Safely extract a single float from any value type.
+                Handles: plain int/float, numpy scalar, list, ndarray,
+                and bracket-wrapped strings like '[5E-1,5E-1,5E-1,5E-1]'.
+                """
+                if isinstance(v, (int, float, np.integer, np.floating)):
+                    return float(v)
                 if isinstance(v, (list, np.ndarray)):
-                    return float(v[0])
-                if isinstance(v, str) and "[" in v:
-                    return float(v.replace("[","").replace("]","").split(",")[0])
+                    return float(np.array(v).flatten()[0])
+                if isinstance(v, str):
+                    # Strip brackets and whitespace, take first element
+                    cleaned = v.strip().lstrip("[").rstrip("]").split(",")[0].strip()
+                    try:
+                        return float(cleaned)
+                    except ValueError:
+                        return 0.0
                 return float(v)
 
             # 3. Build the features using the helper
@@ -168,8 +186,8 @@ with left:
             st.plotly_chart(fig_wf, use_container_width=True)
             st.caption("Green = pushes toward higher tier  ·   Red = pushes toward lower tier")
 
-        except Exception:
-            st.info("Select an institution from the list above to view the SHAP analysis.")
+        except Exception as e:
+            st.warning(f"SHAP chart unavailable: {e}")
     else:
         st.info("Run Notebook 03 to generate models/xgb_model.pkl")
 
