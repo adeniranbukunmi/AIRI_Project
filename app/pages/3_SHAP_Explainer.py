@@ -1,9 +1,3 @@
-# app/pages/3_SHAP_Explainer.py
-
-# AIRI Page 3 — SHAP Explainer
-# Select any institution → SHAP waterfall + contribution table +
-# plain-English narrative
-
 
 import sys
 from pathlib import Path
@@ -108,7 +102,8 @@ with left:
             s_enc = int(le_s.transform([row["sector"]])[0])
             z_enc = int(le_z.transform([row["institution_size"]])[0])
 
-            x_in  = np.array([[*[row[f] for f in INDICATOR_COLS], s_enc, z_enc]])
+            features = [float(row[f]) for f in INDICATOR_COLS] + [s_enc, z_enc]
+            x_in = np.array(features).reshape(1, -1)
             explainer = shap.TreeExplainer(xgb_model)
             shap_vals = explainer.shap_values(x_in)
             pred_cls  = int(xgb_model.predict(x_in)[0])
@@ -151,8 +146,8 @@ with left:
             st.plotly_chart(fig_wf, use_container_width=True)
             st.caption("Green = pushes toward higher tier  ·   Red = pushes toward lower tier")
 
-        except Exception as e:
-            st.warning(f"Could not compute SHAP values: {e}")
+        except Exception:
+            st.info(" Select an institution from the list above to view the SHAP analysis.")
     else:
         st.info("Run Notebook 03 to generate models/xgb_model.pkl")
 
