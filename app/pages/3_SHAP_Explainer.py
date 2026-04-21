@@ -99,27 +99,33 @@ with left:
     if model_ok:
         try:
             from sklearn.preprocessing import LabelEncoder
-            le_s = LabelEncoder().fit(["credit_union","debt_purchaser",
-                                        "fintech_lender","retail_bank"])
+            # Encode categorical variables
+            le_s = LabelEncoder().fit(["credit_union","debt_purchaser", "fintech_lender","retail_bank"])
             le_z = LabelEncoder().fit(["large","mid","small"])
             s_enc = int(le_s.transform([row["sector"]])[0])
             z_enc = int(le_z.transform([row["institution_size"]])[0])
 
-            features = [float(row[f]) for f in INDICATOR_COLS] + [s_enc, z_enc]
+            # 1. Force data into a clean 2D array (1 row, N columns)
+            features = [float(row[f]) for f in INDICATOR_COLS] + [float(s_enc), float(z_enc)]
             x_in = np.array(features).reshape(1, -1)
+            
+            # 2. Compute SHAP values
             explainer = shap.TreeExplainer(xgb_model)
             shap_vals = explainer.shap_values(x_in)
             pred_cls  = int(xgb_model.predict(x_in)[0])
 
+            # 3. Handle different SHAP output formats (List vs Array)
             if isinstance(shap_vals, list):
-                sv = shap_vals[pred_cls][0]
-                bv = explainer.expected_value[pred_cls] \
-                     if isinstance(explainer.expected_value,(list,np.ndarray)) \
-                     else explainer.expected_value
+                # Multi-class output: pick values for the predicted class
+                sv = shap_vals[pred_cls]
             else:
-                sv = shap_vals[0]
-                bv = explainer.expected_value
+                # Single-class output
+                sv = shap_vals
 
+            # 4. CRITICAL FIX: Force sv to be 1D to prevent the "ndarray" error
+            sv = np.array(sv).flatten()
+
+            # 5. Create the Series for the chart
             feat_labels = [f.replace("_"," ").title() for f in FEATURE_COLS]
             shap_series = pd.Series(sv, index=feat_labels)\
                             .sort_values(key=abs, ascending=False).head(12)
@@ -128,6 +134,7 @@ with left:
             x_vals  = list(shap_series.values) + [float(sum(shap_series.values))]
             y_lbls  = list(shap_series.index)  + ["Total SHAP"]
 
+            # 6. Build the Waterfall Chart
             fig_wf = go.Figure(go.Waterfall(
                 orientation="h", measure=measure,
                 x=x_vals, y=y_lbls,
@@ -137,18 +144,22 @@ with left:
                 totals=dict(marker=dict(color="#1B3A6B")),
                 text=[f"{v:+.3f}" for v in x_vals],
                 textposition="outside",
-                textfont=dict(size=9),
+                textfont=dict(size=9, color="black"), # Ensure text is black
             ))
+            
             fig_wf.update_layout(
                 title=f"Predicted tier: {TIER_NAMES[pred_cls]}",
+                title_font=dict(color="black"),
                 height=420,
                 margin=dict(t=40,b=20,l=160,r=80),
-                xaxis_title="SHAP Value",
-                plot_bgcolor="white",paper_bgcolor="white",
+                xaxis=dict(title="SHAP Value", title_font=dict(color="black"), tickfont=dict(color="black")),
+                yaxis=dict(tickfont=dict(color="black")),
+                plot_bgcolor="white",
+                paper_bgcolor="white",
             )
+            
             st.plotly_chart(fig_wf, use_container_width=True)
             st.caption("Green = pushes toward higher tier  ·   Red = pushes toward lower tier")
-
         except Exception:
             st.info(" Select an institution from the list above to view the SHAP analysis.")
     else:
