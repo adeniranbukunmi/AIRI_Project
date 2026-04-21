@@ -35,7 +35,10 @@ def load_config():
 
 @st.cache_resource
 def load_xgb():
-    return joblib.load(PROJECT_ROOT / "models" / "xgb_model.pkl")
+    model_path = PROJECT_ROOT / "models" / "xgb_model.pkl"
+    if not model_path.exists():
+        st.error(f"Model file not found at {model_path}")
+    return joblib.load(model_path)
 
 @st.cache_data
 def load_cohort():
