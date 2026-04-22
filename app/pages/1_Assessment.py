@@ -126,7 +126,7 @@ FEATURE_COLS = list(TOOLTIPS.keys()) + ["sector_enc", "size_enc"]
 
 # PAGE LAYOUT
 st.markdown(
-    "<h1 style='color:#1B3A6B; margin-bottom:0;'>Institution Assessment</h1>"
+    "<h1 style='color:#1B3A6B; margin-bottom:0;'>Institutionss Assessment</h1>"
     "<p style='color:#1B3A6B; margin-top:4px;'>"
     "Set each indicator score (1-5) to compute your institution's AIRI readiness profile in real-time.</p>",
     unsafe_allow_html=True,
