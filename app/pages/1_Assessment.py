@@ -126,7 +126,7 @@ FEATURE_COLS = list(TOOLTIPS.keys()) + ["sector_enc", "size_enc"]
 
 # PAGE LAYOUT
 st.markdown(
-    "<h1 style='color:#1B3A6B; margin-bottom:0;'>Institutionss Assessment</h1>"
+    "<h1 style='color:#1B3A6B; margin-bottom:0;'>Institution Assessment</h1>"
     "<p style='color:#1B3A6B; margin-top:4px;'>"
     "Set each indicator score (1-5) to compute your institution's AIRI readiness profile in real-time.</p>",
     unsafe_allow_html=True,
@@ -318,14 +318,9 @@ with shap_col:
                 sector_enc, size_enc
             ]])
 
-            sv, pred_class, explain_method = explain_instance(
+            sv, pred_class, _ = explain_instance(
                 xgb_model, x_input, FEATURE_COLS
             )
-            if explain_method == "xgb_contrib":
-                st.caption(
-                    "Using XGBoost native feature contributions (SHAP TreeExplainer "
-                    "failed on this runtime — often due to XGBoost/sklearn version mismatch)."
-                )
 
             # Build Plotly waterfall from SHAP values
             feat_names    = [f.replace("_", " ").title() for f in FEATURE_COLS]

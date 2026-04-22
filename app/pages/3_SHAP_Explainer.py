@@ -136,14 +136,9 @@ with left:
             features = [clean_val(row[f]) for f in INDICATOR_COLS] + [float(s_enc), float(z_enc)]
             x_in = np.array(features).reshape(1, -1)
             
-            sv, pred_cls, explain_method = explain_instance(
+            sv, pred_cls, _ = explain_instance(
                 xgb_model, x_in, FEATURE_COLS
             )
-            if explain_method == "xgb_contrib":
-                st.caption(
-                    "Using XGBoost native feature contributions (SHAP TreeExplainer "
-                    "failed on this runtime — often due to XGBoost/sklearn version mismatch)."
-                )
 
             # 6. Chart Preparation
             feat_labels = [f.replace("_"," ").title() for f in FEATURE_COLS]
