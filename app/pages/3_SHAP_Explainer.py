@@ -29,6 +29,38 @@ FEATURE_COLS = INDICATOR_COLS + ["sector_enc","size_enc"]
 TIER_MAP     = {"nascent":0,"developing":1,"established":2,"leading":3}
 TIER_NAMES   = ["Nascent","Developing","Established","Leading"]
 
+
+def _get_pred_class_shap_vector(shap_vals, pred_class, n_features):
+    """Return a 1D SHAP vector for the predicted class."""
+    if isinstance(shap_vals, list):
+        class_vals = np.asarray(shap_vals[pred_class]).squeeze()
+        if class_vals.ndim == 1:
+            return class_vals
+        if class_vals.ndim == 2:
+            if class_vals.shape[0] == n_features:
+                return class_vals[:, 0]
+            if class_vals.shape[1] == n_features:
+                return class_vals[0, :]
+        raise ValueError(f"Unsupported SHAP list shape: {class_vals.shape}")
+
+    arr = np.asarray(shap_vals).squeeze()
+    if arr.ndim == 1 and arr.shape[0] == n_features:
+        return arr
+    if arr.ndim == 2:
+        if arr.shape[0] == n_features:
+            if pred_class >= arr.shape[1]:
+                raise ValueError(
+                    f"Predicted class index {pred_class} out of bounds for SHAP shape {arr.shape}"
+                )
+            return arr[:, pred_class]
+        if arr.shape[1] == n_features:
+            if pred_class >= arr.shape[0]:
+                raise ValueError(
+                    f"Predicted class index {pred_class} out of bounds for SHAP shape {arr.shape}"
+                )
+            return arr[pred_class, :]
+    raise ValueError(f"Unsupported SHAP output shape: {arr.shape}")
+
 @st.cache_resource
 def load_config():
     return AIRIConfig(str(PROJECT_ROOT / "airi_config.yaml"))
@@ -141,14 +173,11 @@ with left:
             pred_cls  = int(xgb_model.predict(x_in)[0])
 
             # 5. SHAP output
-            if isinstance(shap_vals, list):
-                sv = np.array(shap_vals[pred_cls]).flatten()
-                bv = explainer.expected_value[pred_cls] \
-                     if isinstance(explainer.expected_value,(list,np.ndarray)) \
-                     else explainer.expected_value
-            else:
-                sv = np.array(shap_vals).flatten()
-                bv = explainer.expected_value
+            sv = _get_pred_class_shap_vector(
+                shap_vals=shap_vals,
+                pred_class=pred_cls,
+                n_features=len(FEATURE_COLS),
+            )
 
             # 6. Chart Preparation
             feat_labels = [f.replace("_"," ").title() for f in FEATURE_COLS]
