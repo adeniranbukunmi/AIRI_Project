@@ -125,6 +125,38 @@ DIM_SCORE_COLS = ["score_d1", "score_d2", "score_d3", "score_d4", "score_d5"]
 FEATURE_COLS = list(TOOLTIPS.keys()) + ["sector_enc", "size_enc"]
 
 
+def _get_pred_class_shap_vector(shap_vals, pred_class, n_features):
+    """Return a 1D SHAP vector for the predicted class."""
+    if isinstance(shap_vals, list):
+        class_vals = np.asarray(shap_vals[pred_class]).squeeze()
+        if class_vals.ndim == 1:
+            return class_vals
+        if class_vals.ndim == 2:
+            if class_vals.shape[0] == n_features:
+                return class_vals[:, 0]
+            if class_vals.shape[1] == n_features:
+                return class_vals[0, :]
+        raise ValueError(f"Unsupported SHAP list shape: {class_vals.shape}")
+
+    arr = np.asarray(shap_vals).squeeze()
+    if arr.ndim == 1 and arr.shape[0] == n_features:
+        return arr
+    if arr.ndim == 2:
+        if arr.shape[0] == n_features:
+            if pred_class >= arr.shape[1]:
+                raise ValueError(
+                    f"Predicted class index {pred_class} out of bounds for SHAP shape {arr.shape}"
+                )
+            return arr[:, pred_class]
+        if arr.shape[1] == n_features:
+            if pred_class >= arr.shape[0]:
+                raise ValueError(
+                    f"Predicted class index {pred_class} out of bounds for SHAP shape {arr.shape}"
+                )
+            return arr[pred_class, :]
+    raise ValueError(f"Unsupported SHAP output shape: {arr.shape}")
+
+
 # PAGE LAYOUT
 st.markdown(
     "<h1 style='color:#1B3A6B; margin-bottom:0;'>Institution Assessment</h1>"
@@ -324,14 +356,11 @@ with shap_col:
 
             # Use the predicted class for waterfall
             pred_class = int(xgb_model.predict(x_input)[0])
-            if isinstance(shap_vals, list):
-                sv  = shap_vals[pred_class][0]
-                bv  = explainer.expected_value[pred_class] \
-                      if isinstance(explainer.expected_value, (list, np.ndarray)) \
-                      else explainer.expected_value
-            else:
-                sv  = shap_vals[0]
-                bv  = explainer.expected_value
+            sv = _get_pred_class_shap_vector(
+                shap_vals=shap_vals,
+                pred_class=pred_class,
+                n_features=len(FEATURE_COLS),
+            )
 
             # Build Plotly waterfall from SHAP values
             feat_names    = [f.replace("_", " ").title() for f in FEATURE_COLS]
