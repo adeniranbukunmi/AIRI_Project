@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import shap
 import streamlit as st
+import xgboost as xgb
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -60,6 +61,37 @@ def _get_pred_class_shap_vector(shap_vals, pred_class, n_features):
                 )
             return arr[pred_class, :]
     raise ValueError(f"Unsupported SHAP output shape: {arr.shape}")
+
+
+def _get_pred_class_xgb_contrib_vector(xgb_model, x_input, pred_class, n_features):
+    """Fallback: compute SHAP-like contributions via XGBoost pred_contribs."""
+    dmat = xgb.DMatrix(x_input)
+    contribs = np.asarray(
+        xgb_model.get_booster().predict(
+            dmat,
+            pred_contribs=True,
+            validate_features=False,
+        )
+    )
+
+    if contribs.ndim == 3:
+        row = contribs[0, pred_class, :]
+    elif contribs.ndim == 2:
+        row = contribs[0, :]
+        if row.shape[0] == (n_features + 1):
+            pass
+        else:
+            n_classes = int(getattr(xgb_model, "n_classes_", 0) or 0)
+            if n_classes <= 0:
+                raise ValueError(f"Cannot infer class count from contrib shape {contribs.shape}")
+            expected_width = (n_features + 1) * n_classes
+            if row.shape[0] != expected_width:
+                raise ValueError(f"Unsupported contrib shape: {contribs.shape}")
+            row = row.reshape(n_classes, n_features + 1)[pred_class]
+    else:
+        raise ValueError(f"Unsupported contrib ndim: {contribs.ndim}")
+
+    return row[:n_features]
 
 @st.cache_resource
 def load_config():
@@ -169,15 +201,23 @@ with left:
             
             # 4. Model Logic
             explainer = shap.TreeExplainer(xgb_model)
-            shap_vals = explainer.shap_values(x_in)
             pred_cls  = int(xgb_model.predict(x_in)[0])
 
             # 5. SHAP output
-            sv = _get_pred_class_shap_vector(
-                shap_vals=shap_vals,
-                pred_class=pred_cls,
-                n_features=len(FEATURE_COLS),
-            )
+            try:
+                shap_vals = explainer.shap_values(x_in)
+                sv = _get_pred_class_shap_vector(
+                    shap_vals=shap_vals,
+                    pred_class=pred_cls,
+                    n_features=len(FEATURE_COLS),
+                )
+            except Exception:
+                sv = _get_pred_class_xgb_contrib_vector(
+                    xgb_model=xgb_model,
+                    x_input=x_in,
+                    pred_class=pred_cls,
+                    n_features=len(FEATURE_COLS),
+                )
 
             # 6. Chart Preparation
             feat_labels = [f.replace("_"," ").title() for f in FEATURE_COLS]
