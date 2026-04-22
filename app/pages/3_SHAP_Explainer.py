@@ -2,18 +2,16 @@
 import sys
 from pathlib import Path
 
-import joblib
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import shap
 import streamlit as st
-import xgboost as xgb
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.airi_engine import AIRIConfig, AIRIScorer
+from src.xgb_explain import explain_instance, load_xgb_classifier
 
 TIER_COLOURS = {
     "nascent": "#DC2626", "developing": "#D97706",
@@ -30,79 +28,18 @@ FEATURE_COLS = INDICATOR_COLS + ["sector_enc","size_enc"]
 TIER_MAP     = {"nascent":0,"developing":1,"established":2,"leading":3}
 TIER_NAMES   = ["Nascent","Developing","Established","Leading"]
 
-
-def _get_pred_class_shap_vector(shap_vals, pred_class, n_features):
-    """Return a 1D SHAP vector for the predicted class."""
-    if isinstance(shap_vals, list):
-        class_vals = np.asarray(shap_vals[pred_class]).squeeze()
-        if class_vals.ndim == 1:
-            return class_vals
-        if class_vals.ndim == 2:
-            if class_vals.shape[0] == n_features:
-                return class_vals[:, 0]
-            if class_vals.shape[1] == n_features:
-                return class_vals[0, :]
-        raise ValueError(f"Unsupported SHAP list shape: {class_vals.shape}")
-
-    arr = np.asarray(shap_vals).squeeze()
-    if arr.ndim == 1 and arr.shape[0] == n_features:
-        return arr
-    if arr.ndim == 2:
-        if arr.shape[0] == n_features:
-            if pred_class >= arr.shape[1]:
-                raise ValueError(
-                    f"Predicted class index {pred_class} out of bounds for SHAP shape {arr.shape}"
-                )
-            return arr[:, pred_class]
-        if arr.shape[1] == n_features:
-            if pred_class >= arr.shape[0]:
-                raise ValueError(
-                    f"Predicted class index {pred_class} out of bounds for SHAP shape {arr.shape}"
-                )
-            return arr[pred_class, :]
-    raise ValueError(f"Unsupported SHAP output shape: {arr.shape}")
-
-
-def _get_pred_class_xgb_contrib_vector(xgb_model, x_input, pred_class, n_features):
-    """Fallback: compute SHAP-like contributions via XGBoost pred_contribs."""
-    dmat = xgb.DMatrix(x_input)
-    contribs = np.asarray(
-        xgb_model.get_booster().predict(
-            dmat,
-            pred_contribs=True,
-            validate_features=False,
-        )
-    )
-
-    if contribs.ndim == 3:
-        row = contribs[0, pred_class, :]
-    elif contribs.ndim == 2:
-        row = contribs[0, :]
-        if row.shape[0] == (n_features + 1):
-            pass
-        else:
-            n_classes = int(getattr(xgb_model, "n_classes_", 0) or 0)
-            if n_classes <= 0:
-                raise ValueError(f"Cannot infer class count from contrib shape {contribs.shape}")
-            expected_width = (n_features + 1) * n_classes
-            if row.shape[0] != expected_width:
-                raise ValueError(f"Unsupported contrib shape: {contribs.shape}")
-            row = row.reshape(n_classes, n_features + 1)[pred_class]
-    else:
-        raise ValueError(f"Unsupported contrib ndim: {contribs.ndim}")
-
-    return row[:n_features]
-
 @st.cache_resource
 def load_config():
     return AIRIConfig(str(PROJECT_ROOT / "airi_config.yaml"))
 
 @st.cache_resource
 def load_xgb():
-    model_path = PROJECT_ROOT / "models" / "xgb_model.pkl"
-    if not model_path.exists():
-        st.error(f"Model file not found at {model_path}")
-    return joblib.load(model_path)
+    pkl_path = PROJECT_ROOT / "models" / "xgb_model.pkl"
+    json_path = PROJECT_ROOT / "models" / "xgb_model.json"
+    if not pkl_path.exists() and not json_path.exists():
+        st.error(f"No model found at {pkl_path} or {json_path}")
+        raise FileNotFoundError("Missing models/xgb_model.pkl or models/xgb_model.json")
+    return load_xgb_classifier(PROJECT_ROOT)
 
 @st.cache_data
 def load_cohort():
@@ -199,24 +136,13 @@ with left:
             features = [clean_val(row[f]) for f in INDICATOR_COLS] + [float(s_enc), float(z_enc)]
             x_in = np.array(features).reshape(1, -1)
             
-            # 4. Model Logic
-            explainer = shap.TreeExplainer(xgb_model)
-            pred_cls  = int(xgb_model.predict(x_in)[0])
-
-            # 5. SHAP output
-            try:
-                shap_vals = explainer.shap_values(x_in)
-                sv = _get_pred_class_shap_vector(
-                    shap_vals=shap_vals,
-                    pred_class=pred_cls,
-                    n_features=len(FEATURE_COLS),
-                )
-            except Exception:
-                sv = _get_pred_class_xgb_contrib_vector(
-                    xgb_model=xgb_model,
-                    x_input=x_in,
-                    pred_class=pred_cls,
-                    n_features=len(FEATURE_COLS),
+            sv, pred_cls, explain_method = explain_instance(
+                xgb_model, x_in, FEATURE_COLS
+            )
+            if explain_method == "xgb_contrib":
+                st.caption(
+                    "Using XGBoost native feature contributions (SHAP TreeExplainer "
+                    "failed on this runtime — often due to XGBoost/sklearn version mismatch)."
                 )
 
             # 6. Chart Preparation

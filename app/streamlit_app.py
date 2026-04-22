@@ -35,7 +35,11 @@ pages = {
 }
 
 st.sidebar.markdown("### Navigation")
-selection = st.sidebar.radio("", list(pages.keys()), label_visibility="collapsed")
+selection = st.sidebar.radio(
+    "Page",
+    list(pages.keys()),
+    label_visibility="collapsed",
+)
 
 
 
